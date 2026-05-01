@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bhatti Brothers Mess Portal</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; }
         .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
         h1, h2 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 5px; }
         .form-group { margin-bottom: 15px; }
@@ -23,7 +23,6 @@
         .result-box { margin-top: 15px; padding: 15px; border-radius: 5px; display: none; }
         .success { background-color: #d4edda; color: #155724; }
         .error { background-color: #f8d7da; color: #721c24; }
-        .flex-row { display: flex; gap: 10px; }
     </style>
 </head>
 <body>
@@ -48,39 +47,16 @@
     </div>
     
     <label>Select Items & Quantities</label>
-    <div class="checkbox-grid" id="menuContainer">
-        </div>
+    <div class="checkbox-grid" id="menuContainer"></div>
     
     <button onclick="submitMultiple()">Submit Selected Items</button>
     <div id="entryLoader" class="loader">Submitting...</div>
     <div id="entryMsg" class="result-box"></div>
 
-    <h2 style="margin-top: 40px;">📧 Email Bills</h2>
-    <div class="flex-row">
-        <div class="form-group" style="flex: 1;">
-            <label>From Date</label>
-            <input type="date" id="billStart">
-        </div>
-        <div class="form-group" style="flex: 1;">
-            <label>To Date</label>
-            <input type="date" id="billEnd">
-        </div>
-    </div>
-    <div class="form-group">
-        <label>Select Recipient</label>
-        <select id="billEmail">
-            <option value="All">Send to ALL Users</option>
-            </select>
-        <input type="email" id="customBillEmail" placeholder="Or type specific email..." style="margin-top: 5px;">
-    </div>
-    <button onclick="sendEmails()" style="background-color: #27ae60;">Send Email Bills</button>
-    <div id="emailLoader" class="loader">Generating and sending emails...</div>
-    <div id="emailMsg" class="result-box"></div>
-
     <h2 style="margin-top: 40px;">🔍 Check Detailed History</h2>
     <div class="form-group">
         <label>Email Address</label>
-        <input type="email" id="historyEmail" placeholder="Enter email">
+        <input type="email" id="historyEmail" placeholder="Enter email (e.g., student1@example.com)">
     </div>
     <button onclick="checkHistory()">Get Detailed Bill</button>
     <div id="historyLoader" class="loader">Fetching records...</div>
@@ -102,43 +78,37 @@
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwGgnoLayT75LMjbhxxTgo7mQbFds0zp2OWSt9drtgWX6e6MT2KzRejgIktYADDpU7u2g/exec'; 
     let staffData = [];
 
-    window.onload = function() {
+    window.onload = async function() {
         document.getElementById('entryDate').valueAsDate = new Date();
         
-        // Fetch Menu Items
-        fetch(SCRIPT_URL + '?action=getMenuItems')
-            .then(res => res.json())
-            .then(data => {
-                const container = document.getElementById('menuContainer');
-                data.forEach(item => {
-                    let id = item.replace(/\s+/g, ''); // Remove spaces for ID
-                    container.innerHTML += `
-                        <div class="item-row">
-                            <label><input type="checkbox" class="item-checkbox" value="${item}"> ${item}</label>
-                            <input type="number" id="qty-${id}" value="1" min="1" disabled>
-                        </div>
-                    `;
-                });
-                
-                // Add listeners to enable/disable qty inputs
-                document.querySelectorAll('.item-checkbox').forEach(chk => {
-                    chk.addEventListener('change', function() {
-                        let id = this.value.replace(/\s+/g, '');
-                        document.getElementById('qty-' + id).disabled = !this.checked;
-                    });
+        try {
+            // Load Menu Items
+            const menuRes = await fetch(SCRIPT_URL + '?action=getMenuItems');
+            const menuData = await menuRes.json();
+            const container = document.getElementById('menuContainer');
+            menuData.forEach(item => {
+                let id = item.replace(/[^a-zA-Z0-9]/g, ''); 
+                container.innerHTML += `
+                    <div class="item-row">
+                        <label><input type="checkbox" class="item-checkbox" value="${item}"> ${item}</label>
+                        <input type="number" id="qty-${id}" value="1" min="1" disabled>
+                    </div>`;
+            });
+            document.querySelectorAll('.item-checkbox').forEach(chk => {
+                chk.addEventListener('change', function() {
+                    let id = this.value.replace(/[^a-zA-Z0-9]/g, '');
+                    document.getElementById('qty-' + id).disabled = !this.checked;
                 });
             });
 
-        // Fetch Staff List
-        fetch(SCRIPT_URL + '?action=getStaff')
-            .then(res => res.json())
-            .then(data => {
-                staffData = data;
-                const dropdown = document.getElementById('staffDropdown');
-                data.forEach(staff => {
-                    dropdown.innerHTML += `<option value="${staff.email}">${staff.email}</option>`;
-                });
-            });
+            // Load Staff
+            const staffRes = await fetch(SCRIPT_URL + '?action=getStaff');
+            staffData = await staffRes.json();
+            const dropdown = document.getElementById('staffDropdown');
+            staffData.forEach(staff => dropdown.innerHTML += `<option value="${staff.email}">${staff.email}</option>`);
+        } catch (err) {
+            console.error("Failed to load initial data", err);
+        }
     };
 
     function autoFillName() {
@@ -147,91 +117,79 @@
         document.getElementById('entryName').value = staff ? staff.name : '';
     }
 
-    function submitMultiple() {
+    async function submitMultiple() {
         const date = document.getElementById('entryDate').value;
         const email = document.getElementById('staffDropdown').value;
         const name = document.getElementById('entryName').value;
         
         let selectedItems = [];
         document.querySelectorAll('.item-checkbox:checked').forEach(chk => {
-            let id = chk.value.replace(/\s+/g, '');
+            let id = chk.value.replace(/[^a-zA-Z0-9]/g, '');
             let qty = document.getElementById('qty-' + id).value;
             selectedItems.push({ itemName: chk.value, quantity: qty });
         });
 
-        if(!email || selectedItems.length === 0) {
-            alert("Please select staff and at least one item."); return;
-        }
+        if(!email || selectedItems.length === 0) { alert("Select staff and items."); return; }
 
         document.getElementById('entryLoader').style.display = 'block';
-        
-        fetch(SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: 'addMultipleEntries', date: date, email: email, name: name, items: selectedItems })
-        })
-        .then(res => res.json())
-        .then(data => {
+        document.getElementById('entryMsg').style.display = 'none';
+
+        try {
+            const response = await fetch(SCRIPT_URL, {
+                method: 'POST',
+                headers: { "Content-Type": "text/plain;charset=utf-8" }, // Prevents CORS errors
+                redirect: 'follow', // Crucial for Google Apps Script
+                body: JSON.stringify({ action: 'addMultipleEntries', date: date, email: email, name: name, items: selectedItems })
+            });
+            const data = await response.json();
             document.getElementById('entryLoader').style.display = 'none';
             if(data.status === 'Success') {
-                document.getElementById('entryMsg').innerHTML = "Items added successfully!";
-                document.getElementById('entryMsg').className = "result-box success";
-                document.getElementById('entryMsg').style.display = "block";
+                let msg = document.getElementById('entryMsg');
+                msg.innerText = "Items added successfully!";
+                msg.className = "result-box success";
+                msg.style.display = "block";
                 document.querySelectorAll('.item-checkbox').forEach(chk => { chk.checked = false; chk.dispatchEvent(new Event('change')); });
             }
-        });
+        } catch(err) {
+            document.getElementById('entryLoader').style.display = 'none';
+            alert("Error connecting to server.");
+        }
     }
 
-    function checkHistory() {
+    async function checkHistory() {
         const email = document.getElementById('historyEmail').value;
         if(!email) return;
         
         document.getElementById('historyLoader').style.display = 'block';
         document.getElementById('historyTableContainer').style.display = 'none';
 
-        fetch(SCRIPT_URL + '?action=getHistory&email=' + encodeURIComponent(email))
-            .then(res => res.json())
-            .then(data => {
-                document.getElementById('historyLoader').style.display = 'none';
-                const tbody = document.querySelector('#historyTable tbody');
-                tbody.innerHTML = '';
-                
-                if(data.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No records found.</td></tr>';
-                } else {
-                    data.forEach(row => {
-                        tbody.innerHTML += `<tr>
-                            <td>${row.date}</td>
-                            <td>${row.item}</td>
-                            <td>${row.qty}</td>
-                            <td>Rs. ${row.price}</td>
-                            <td><strong>Rs. ${row.total}</strong></td>
-                        </tr>`;
-                    });
-                }
-                document.getElementById('historyTableContainer').style.display = 'block';
-            });
-    }
+        try {
+            const res = await fetch(SCRIPT_URL + '?action=getHistory&email=' + encodeURIComponent(email));
+            const data = await res.json();
+            document.getElementById('historyLoader').style.display = 'none';
+            
+            const tbody = document.querySelector('#historyTable tbody');
+            tbody.innerHTML = '';
+            
+            if(data.error) {
+                 alert("Error: " + data.error); return;
+            }
 
-    function sendEmails() {
-        const start = document.getElementById('billStart').value;
-        const end = document.getElementById('billEnd').value;
-        let email = document.getElementById('customBillEmail').value || document.getElementById('billEmail').value;
-
-        if(!start || !end) { alert("Please select start and end dates."); return; }
-
-        document.getElementById('emailLoader').style.display = 'block';
-
-        fetch(SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: 'sendBills', email: email, startDate: start, endDate: end })
-        })
-        .then(res => res.json())
-        .then(data => {
-            document.getElementById('emailLoader').style.display = 'none';
-            document.getElementById('emailMsg').innerHTML = "Emails sent successfully!";
-            document.getElementById('emailMsg').className = "result-box success";
-            document.getElementById('emailMsg').style.display = "block";
-        });
+            if(data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No records found.</td></tr>';
+            } else {
+                let grandTotal = 0;
+                data.forEach(row => {
+                    grandTotal += parseFloat(row.total);
+                    tbody.innerHTML += `<tr><td>${row.date}</td><td>${row.item}</td><td>${row.qty}</td><td>Rs. ${row.price}</td><td><strong>Rs. ${row.total}</strong></td></tr>`;
+                });
+                tbody.innerHTML += `<tr><td colspan="4" style="text-align:right;"><strong>GRAND TOTAL</strong></td><td style="color:red;"><strong>Rs. ${grandTotal}</strong></td></tr>`;
+            }
+            document.getElementById('historyTableContainer').style.display = 'block';
+        } catch(err) {
+            document.getElementById('historyLoader').style.display = 'none';
+            alert("Error fetching history.");
+        }
     }
 </script>
 </body>
