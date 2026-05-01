@@ -5,21 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bhatti Brothers Mess Portal</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; color: #333; margin: 0; padding: 20px; }
-        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        h1 { color: #2c3e50; text-align: center; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
-        h2 { color: #2980b9; margin-top: 30px; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        h1, h2 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 5px; }
         .form-group { margin-bottom: 15px; }
         label { display: block; font-weight: bold; margin-bottom: 5px; }
         input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
-        button { background-color: #3498db; color: white; border: none; padding: 12px 20px; cursor: pointer; border-radius: 5px; font-size: 16px; width: 100%; margin-top: 10px; }
+        .checkbox-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: #f9f9f9; padding: 15px; border-radius: 5px;}
+        .item-row { display: flex; align-items: center; justify-content: space-between; }
+        .item-row input[type="number"] { width: 80px; margin-left: 10px; }
+        button { background-color: #3498db; color: white; border: none; padding: 12px; cursor: pointer; border-radius: 5px; font-size: 16px; width: 100%; margin-top: 10px; }
         button:hover { background-color: #2980b9; }
-        .result-box { margin-top: 20px; padding: 15px; border-radius: 5px; display: none; }
-        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        .ledger-card { background-color: #e9ecef; padding: 15px; border-radius: 5px; margin-top: 15px; display: none; }
-        .ledger-card p { margin: 5px 0; font-size: 16px; }
-        .loader { display: none; text-align: center; font-style: italic; color: #7f8c8d; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #3498db; color: white; }
+        .loader { display: none; text-align: center; color: #7f8c8d; font-style: italic; }
+        .result-box { margin-top: 15px; padding: 15px; border-radius: 5px; display: none; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .flex-row { display: flex; gap: 10px; }
     </style>
 </head>
 <body>
@@ -27,168 +31,208 @@
 <div class="container">
     <h1>Bhatti Brothers Mess System</h1>
 
-    <h2>➕ Add Faculty/Staff Entry</h2>
+    <h2>➕ Add Faculty/Staff Items</h2>
     <div class="form-group">
         <label>Date</label>
         <input type="date" id="entryDate" required>
     </div>
     <div class="form-group">
-        <label>Email Address</label>
-        <input type="email" id="entryEmail" placeholder="staff@example.com" required>
-    </div>
-    <div class="form-group">
-        <label>Full Name</label>
-        <input type="text" id="entryName" placeholder="Enter Full Name" required>
-    </div>
-    <div class="form-group">
-        <label>Item / Meal</label>
-        <select id="entryItem">
-            <option value="">Loading menu items...</option>
+        <label>Select Staff</label>
+        <select id="staffDropdown" onchange="autoFillName()">
+            <option value="">-- Select Staff Email --</option>
         </select>
     </div>
     <div class="form-group">
-        <label>Quantity</label>
-        <input type="number" id="entryQty" value="1" min="1" required>
+        <label>Full Name</label>
+        <input type="text" id="entryName" readonly style="background-color: #e9ecef;">
     </div>
-    <button onclick="submitEntry()">Submit Entry</button>
-    <div id="entryLoader" class="loader">Submitting... please wait.</div>
+    
+    <label>Select Items & Quantities</label>
+    <div class="checkbox-grid" id="menuContainer">
+        </div>
+    
+    <button onclick="submitMultiple()">Submit Selected Items</button>
+    <div id="entryLoader" class="loader">Submitting...</div>
     <div id="entryMsg" class="result-box"></div>
 
-    <hr style="margin: 40px 0; border: 0; border-top: 1px solid #eee;">
+    <h2 style="margin-top: 40px;">📧 Email Bills</h2>
+    <div class="flex-row">
+        <div class="form-group" style="flex: 1;">
+            <label>From Date</label>
+            <input type="date" id="billStart">
+        </div>
+        <div class="form-group" style="flex: 1;">
+            <label>To Date</label>
+            <input type="date" id="billEnd">
+        </div>
+    </div>
+    <div class="form-group">
+        <label>Select Recipient</label>
+        <select id="billEmail">
+            <option value="All">Send to ALL Users</option>
+            </select>
+        <input type="email" id="customBillEmail" placeholder="Or type specific email..." style="margin-top: 5px;">
+    </div>
+    <button onclick="sendEmails()" style="background-color: #27ae60;">Send Email Bills</button>
+    <div id="emailLoader" class="loader">Generating and sending emails...</div>
+    <div id="emailMsg" class="result-box"></div>
 
-    <h2>🔍 Check User Ledger</h2>
+    <h2 style="margin-top: 40px;">🔍 Check Detailed History</h2>
     <div class="form-group">
         <label>Email Address</label>
-        <input type="email" id="ledgerEmail" placeholder="Enter email to check balance">
+        <input type="email" id="historyEmail" placeholder="Enter email">
     </div>
-    <button onclick="checkLedger()">Check Balance</button>
-    <div id="ledgerLoader" class="loader">Fetching records...</div>
+    <button onclick="checkHistory()">Get Detailed Bill</button>
+    <div id="historyLoader" class="loader">Fetching records...</div>
     
-    <div id="ledgerResult" class="ledger-card">
-        <p><strong>Name:</strong> <span id="l-name"></span></p>
-        <p><strong>Role:</strong> <span id="l-role"></span></p>
-        <p><strong>Total Billed:</strong> Rs. <span id="l-billed"></span></p>
-        <p><strong>Total Paid:</strong> Rs. <span id="l-paid"></span></p>
-        <p style="font-size: 18px; color: #c0392b;"><strong>Current Arrears:</strong> Rs. <span id="l-arrears"></span></p>
+    <div id="historyTableContainer" style="display: none; margin-top: 20px;">
+        <table id="historyTable">
+            <thead>
+                <tr><th>Date</th><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr>
+            </thead>
+            <tbody></tbody>
+        </table>
     </div>
-    <div id="ledgerError" class="result-box error"></div>
 </div>
 
 <script>
     // ==========================================
-    // PASTE YOUR WEB APP URL BELOW
+    // PASTE YOUR NEW WEB APP URL HERE
     // ==========================================
     const SCRIPT_URL = 'YOUR_WEB_APP_URL_HERE'; 
+    let staffData = [];
 
-    // 1. Load Dynamic Menu Items on page load
     window.onload = function() {
-        if(SCRIPT_URL === 'https://script.google.com/macros/s/AKfycbwGgnoLayT75LMjbhxxTgo7mQbFds0zp2OWSt9drtgWX6e6MT2KzRejgIktYADDpU7u2g/exec') {
-            alert("Please update the SCRIPT_URL in the HTML file with your actual Google Web App URL!");
-            return;
-        }
-
-        fetch(SCRIPT_URL + '?action=getMenuItems')
-            .then(response => response.json())
-            .then(data => {
-                const select = document.getElementById('entryItem');
-                select.innerHTML = ''; 
-                data.forEach(item => {
-                    let option = document.createElement('option');
-                    option.value = item;
-                    option.text = item;
-                    select.appendChild(option);
-                });
-            }).catch(err => console.error("Error loading menu:", err));
-        
-        // Set today's date as default
         document.getElementById('entryDate').valueAsDate = new Date();
+        
+        // Fetch Menu Items
+        fetch(SCRIPT_URL + '?action=getMenuItems')
+            .then(res => res.json())
+            .then(data => {
+                const container = document.getElementById('menuContainer');
+                data.forEach(item => {
+                    let id = item.replace(/\s+/g, ''); // Remove spaces for ID
+                    container.innerHTML += `
+                        <div class="item-row">
+                            <label><input type="checkbox" class="item-checkbox" value="${item}"> ${item}</label>
+                            <input type="number" id="qty-${id}" value="1" min="1" disabled>
+                        </div>
+                    `;
+                });
+                
+                // Add listeners to enable/disable qty inputs
+                document.querySelectorAll('.item-checkbox').forEach(chk => {
+                    chk.addEventListener('change', function() {
+                        let id = this.value.replace(/\s+/g, '');
+                        document.getElementById('qty-' + id).disabled = !this.checked;
+                    });
+                });
+            });
+
+        // Fetch Staff List
+        fetch(SCRIPT_URL + '?action=getStaff')
+            .then(res => res.json())
+            .then(data => {
+                staffData = data;
+                const dropdown = document.getElementById('staffDropdown');
+                data.forEach(staff => {
+                    dropdown.innerHTML += `<option value="${staff.email}">${staff.email}</option>`;
+                });
+            });
     };
 
-    // 2. Submit Entry to Google Sheet
-    function submitEntry() {
-        const date = document.getElementById('entryDate').value;
-        const email = document.getElementById('entryEmail').value;
-        const name = document.getElementById('entryName').value;
-        const itemName = document.getElementById('entryItem').value;
-        const qty = document.getElementById('entryQty').value;
+    function autoFillName() {
+        const selectedEmail = document.getElementById('staffDropdown').value;
+        const staff = staffData.find(s => s.email === selectedEmail);
+        document.getElementById('entryName').value = staff ? staff.name : '';
+    }
 
-        if(!date || !email || !name || !itemName) {
-            showMsg('entryMsg', 'Please fill all required fields.', 'error');
-            return;
+    function submitMultiple() {
+        const date = document.getElementById('entryDate').value;
+        const email = document.getElementById('staffDropdown').value;
+        const name = document.getElementById('entryName').value;
+        
+        let selectedItems = [];
+        document.querySelectorAll('.item-checkbox:checked').forEach(chk => {
+            let id = chk.value.replace(/\s+/g, '');
+            let qty = document.getElementById('qty-' + id).value;
+            selectedItems.push({ itemName: chk.value, quantity: qty });
+        });
+
+        if(!email || selectedItems.length === 0) {
+            alert("Please select staff and at least one item."); return;
         }
 
         document.getElementById('entryLoader').style.display = 'block';
-        document.getElementById('entryMsg').style.display = 'none';
-
-        const payload = {
-            action: 'addPortalEntry',
-            date: date,
-            email: email,
-            name: name,
-            itemName: itemName,
-            quantity: qty
-        };
-
+        
         fetch(SCRIPT_URL, {
             method: 'POST',
-            body: JSON.stringify(payload)
+            body: JSON.stringify({ action: 'addMultipleEntries', date: date, email: email, name: name, items: selectedItems })
         })
-        .then(response => response.json())
+        .then(res => res.json())
         .then(data => {
             document.getElementById('entryLoader').style.display = 'none';
             if(data.status === 'Success') {
-                showMsg('entryMsg', 'Entry added successfully!', 'success');
-                // Reset standard fields
-                document.getElementById('entryItem').selectedIndex = 0;
-                document.getElementById('entryQty').value = 1;
-            } else {
-                showMsg('entryMsg', 'Error: ' + data.message, 'error');
+                document.getElementById('entryMsg').innerHTML = "Items added successfully!";
+                document.getElementById('entryMsg').className = "result-box success";
+                document.getElementById('entryMsg').style.display = "block";
+                document.querySelectorAll('.item-checkbox').forEach(chk => { chk.checked = false; chk.dispatchEvent(new Event('change')); });
             }
-        })
-        .catch(err => {
-            document.getElementById('entryLoader').style.display = 'none';
-            showMsg('entryMsg', 'Connection Error.', 'error');
         });
     }
 
-    // 3. Fetch Ledger Balance
-    function checkLedger() {
-        const email = document.getElementById('ledgerEmail').value;
+    function checkHistory() {
+        const email = document.getElementById('historyEmail').value;
         if(!email) return;
+        
+        document.getElementById('historyLoader').style.display = 'block';
+        document.getElementById('historyTableContainer').style.display = 'none';
 
-        document.getElementById('ledgerLoader').style.display = 'block';
-        document.getElementById('ledgerResult').style.display = 'none';
-        document.getElementById('ledgerError').style.display = 'none';
-
-        fetch(SCRIPT_URL + '?action=getLedger&email=' + encodeURIComponent(email))
-            .then(response => response.json())
+        fetch(SCRIPT_URL + '?action=getHistory&email=' + encodeURIComponent(email))
+            .then(res => res.json())
             .then(data => {
-                document.getElementById('ledgerLoader').style.display = 'none';
-                if(data.error) {
-                    showMsg('ledgerError', data.error, 'error');
+                document.getElementById('historyLoader').style.display = 'none';
+                const tbody = document.querySelector('#historyTable tbody');
+                tbody.innerHTML = '';
+                
+                if(data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No records found.</td></tr>';
                 } else {
-                    document.getElementById('ledgerResult').style.display = 'block';
-                    document.getElementById('l-name').innerText = data['Name'] || 'N/A';
-                    document.getElementById('l-role').innerText = data['Role'] || 'N/A';
-                    document.getElementById('l-billed').innerText = data['Total Billed'] || '0';
-                    document.getElementById('l-paid').innerText = data['Total Paid'] || '0';
-                    document.getElementById('l-arrears').innerText = data['Current Balance (Arrears)'] || '0';
+                    data.forEach(row => {
+                        tbody.innerHTML += `<tr>
+                            <td>${row.date}</td>
+                            <td>${row.item}</td>
+                            <td>${row.qty}</td>
+                            <td>Rs. ${row.price}</td>
+                            <td><strong>Rs. ${row.total}</strong></td>
+                        </tr>`;
+                    });
                 }
-            })
-            .catch(err => {
-                document.getElementById('ledgerLoader').style.display = 'none';
-                showMsg('ledgerError', 'Connection Error.', 'error');
+                document.getElementById('historyTableContainer').style.display = 'block';
             });
     }
 
-    // Utility function to show messages
-    function showMsg(elementId, text, type) {
-        const el = document.getElementById(elementId);
-        el.innerText = text;
-        el.className = 'result-box ' + type;
-        el.style.display = 'block';
+    function sendEmails() {
+        const start = document.getElementById('billStart').value;
+        const end = document.getElementById('billEnd').value;
+        let email = document.getElementById('customBillEmail').value || document.getElementById('billEmail').value;
+
+        if(!start || !end) { alert("Please select start and end dates."); return; }
+
+        document.getElementById('emailLoader').style.display = 'block';
+
+        fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'sendBills', email: email, startDate: start, endDate: end })
+        })
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('emailLoader').style.display = 'none';
+            document.getElementById('emailMsg').innerHTML = "Emails sent successfully!";
+            document.getElementById('emailMsg').className = "result-box success";
+            document.getElementById('emailMsg').style.display = "block";
+        });
     }
 </script>
-
 </body>
 </html>
